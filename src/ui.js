@@ -8,14 +8,17 @@ import buttonIcon from './svg/button-icon.svg';
  */
 export default class Ui {
   /**
-   * @param {object} api - Editor.js API
-   * @param {ImageConfig} config - user config
-   * @param {function} onSelectFile - callback for clicks on Select file buttor
+   * @param {object} ui - image tool Ui module
+   * @param {object} ui.api - Editor.js API
+   * @param {GalleryConfig} ui.config - user config
+   * @param {Function} ui.onSelectFile - callback for clicks on Select file button
+   * @param {boolean} ui.readOnly - read-only mode flag
    */
-  constructor({ api, config, onSelectFile }) {
+  constructor({ api, config, onSelectFile, readOnly }) {
     this.api = api;
     this.config = config;
     this.onSelectFile = onSelectFile;
+    this.readOnly = readOnly;
     this.nodes = {
       list: make('div', [ this.CSS.baseClass ]),
       item: make('div', [this.CSS.baseClass, this.CSS.wrapper]),
@@ -26,8 +29,8 @@ export default class Ui {
       imageEl: undefined,
       imagePreloader: make('div', this.CSS.imagePreloader),
       caption: make('div', [this.CSS.input, this.CSS.caption], {
-        contentEditable: true
-      })
+        contentEditable: !this.readOnly,
+      }),
     };
 
     /**
@@ -57,7 +60,8 @@ export default class Ui {
 
   /**
    * CSS classes
-   * @constructor
+   *
+   * @returns {object}
    */
   get CSS() {
     return {
@@ -73,7 +77,7 @@ export default class Ui {
       imageContainer: 'image-tool__image',
       imagePreloader: 'image-tool__image-preloader',
       imageEl: 'image-tool__image-picture',
-      caption: 'image-tool__caption'
+      caption: 'image-tool__caption',
     };
   };
 
@@ -82,19 +86,22 @@ export default class Ui {
    * - empty
    * - uploading
    * - filled
-   * @return {{EMPTY: string, UPLOADING: string, FILLED: string}}
+   *
+   * @returns {{EMPTY: string, UPLOADING: string, FILLED: string}}
    */
   static get status() {
     return {
       EMPTY: 'empty',
       UPLOADING: 'loading',
-      FILLED: 'filled'
+      FILLED: 'filled',
     };
   }
 
   /**
-   * @param {ImageToolData} toolData
-   * @return {HTMLDivElement}
+   * Renders tool UI
+   *
+   * @param {GalleryToolData} toolData - saved tool data
+   * @returns {Element}
    */
   render(toolData) {
     if (!toolData.file || Object.keys(toolData.file).length === 0) {
@@ -107,11 +114,11 @@ export default class Ui {
     return this.nodes.wrapper;
   }
 
-  // eslint-disable-next-line require-jsdoc
 
   /**
    * Creates upload-file button
-   * @return {Element}
+   *
+   * @returns {Element}
    */
   createAddButton() {
     const addButton = make('div', [ this.CSS.button ]);
@@ -125,12 +132,13 @@ export default class Ui {
 
   /**
    * Creates upload-file button
+   *
    * @return {Element}
    */
   createFileButton() {
     const button = make('div', [ this.CSS.button ]);
 
-    button.innerHTML = this.config.buttonContent || `${buttonIcon} Select an Image`;
+    button.innerHTML = this.config.buttonContent || `${buttonIcon} ${this.api.i18n.t('Select an Image')}`;
 
     button.addEventListener('click', () => {
       this.onSelectFile();
@@ -141,7 +149,9 @@ export default class Ui {
 
   /**
    * Shows uploading preloader
+   *
    * @param {string} src - preview source
+   * @returns {void}
    */
   showPreloader(src) {
     this.nodes.imagePreloader.style.backgroundImage = `url(${src})`;
@@ -151,6 +161,8 @@ export default class Ui {
 
   /**
    * Hide uploading preloader
+   *
+   * @returns {void}
    */
   hidePreloader() {
     this.nodes.item.imagePreloader.style.backgroundImage = '';
@@ -159,7 +171,9 @@ export default class Ui {
 
   /**
    * Shows an image
-   * @param {string} url
+   *
+   * @param {string} url - image source
+   * @returns {void}
    */
   fillImage(url) {
     /**
@@ -168,13 +182,14 @@ export default class Ui {
     const tag = /\.mp4$/.test(url) ? 'VIDEO' : 'IMG';
 
     const attributes = {
-      src: url
+      src: url,
     };
 
     /**
      * We use eventName variable because IMG and VIDEO tags have different event to be called on source load
      * - IMG: load
      * - VIDEO: loadeddata
+     *
      * @type {string}
      */
     let eventName = 'load';
@@ -185,6 +200,7 @@ export default class Ui {
     if (tag === 'VIDEO') {
       /**
        * Add attributes for playing muted mp4 as a gif
+       *
        * @type {boolean}
        */
       attributes.autoplay = true;
@@ -194,6 +210,7 @@ export default class Ui {
 
       /**
        * Change event to be listened
+       *
        * @type {string}
        */
       eventName = 'loadeddata';
@@ -201,6 +218,7 @@ export default class Ui {
 
     /**
      * Compose tag with defined attributes
+     *
      * @type {Element}
      */
     this.nodes.imageEl = make(tag, this.CSS.imageEl, attributes);
@@ -224,7 +242,9 @@ export default class Ui {
 
   /**
    * Shows caption input
+   *
    * @param {string} text - caption text
+   * @returns {void}
    */
   fillCaption(text) {
     if (this.nodes.caption) {
@@ -234,7 +254,9 @@ export default class Ui {
 
   /**
    * Changes UI status
+   *
    * @param {string} status - see {@link Ui.status} constants
+   * @returns {void}
    */
   toggleStatus(status) {
     for (const statusType in Ui.status) {
@@ -247,8 +269,10 @@ export default class Ui {
 
   /**
    * Apply visual representation of activated tune
+   *
    * @param {string} tuneName - one of available tunes {@link Tunes.tunes}
    * @param {boolean} status - true for enable, false for disable
+   * @returns {void}
    */
   applyTune(tuneName, status) {
     this.nodes.item.classList.toggle(`${this.CSS.wrapper}--${tuneName}`, status);
@@ -259,9 +283,9 @@ export default class Ui {
  * Helper for making Elements with attributes
  *
  * @param  {string} tagName           - new Element tag name
- * @param  {array|string} classNames  - list or name of CSS class
- * @param  {Object} attributes        - any attributes
- * @return {Element}
+ * @param  {Array|string} classNames  - list or name of CSS class
+ * @param  {object} attributes        - any attributes
+ * @returns {Element}
  */
 export const make = function make(tagName, classNames = null, attributes = {}) {
   const el = document.createElement(tagName);

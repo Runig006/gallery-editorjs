@@ -1,29 +1,64 @@
+// eslint-disable-next-line
 import css from './index.css';
 // eslint-disable-next-line require-jsdoc
 import Uploader from './uploader';
+import Ui from './ui';
+import Tunes from './tunes';
+import toolboxIcon from './svg/toolbox.svg';
 import buttonIcon from './svg/button-icon.svg';
+import closeIcon from './svg/close-icon.svg';
 
 // eslint-disable-next-line require-jsdoc
-export default class SimpleCarousel {
+export default class Gallery {
   /**
-   * @param {CarousellData} data - previously saved data
-   * @param {CarouselConfig} config - user config for Tool
-   * @param {object} api - Editor.js API
+   * Notify core that read-only mode is supported
+   *
+   * @returns {boolean}
    */
-  constructor({ data, config, api }) {
+  static get isReadOnlySupported() {
+    return true;
+  }
+
+  /**
+   * Get Tool toolbox settings
+   * icon - Tool icon's SVG
+   * title - title to show in toolbox
+   *
+   * @return {{icon: string, title: string}}
+   */
+  static get toolbox() {
+    return {
+      title: 'Gallery',
+      icon: toolboxIcon
+    };
+  }
+
+  /**
+   * @param {GalleryData} data - previously saved data
+   * @param {GalleryConfig} config - user config for Tool
+   * @param {object} api - Editor.js API
+   * @param {boolean} tool.readOnly - read-only mode flag
+   */
+  constructor({ data, config, api, readOnly }) {
     this.api = api;
     this.data = data;
-    this.IconClose = '<svg class="icon icon--cross" width="12px" height="12px"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#cross"></use></svg>';
+    this.readOnly = readOnly;
+
+    /**
+     * Tool's initial config
+     */
     this.config = {
       endpoints: config.endpoints || '',
       additionalRequestData: config.additionalRequestData || {},
       additionalRequestHeaders: config.additionalRequestHeaders || {},
       field: config.field || 'image',
       types: config.types || 'image/*',
-      captionPlaceholder: config.captionPlaceholder || 'Caption',
+      captionPlaceholder: this.api.i18n.t(config.captionPlaceholder || 'Caption'),
       buttonContent: config.buttonContent || '',
-      uploader: config.uploader || undefined
+      uploader: config.uploader || undefined,
+      actions: config.actions || [],
     };
+
     /**
      * Module for file uploading
      */
@@ -31,6 +66,37 @@ export default class SimpleCarousel {
       config: this.config,
       onUpload: (response) => this.onUpload(response),
       onError: (error) => this.uploadingFailed(error)
+    });
+
+    /**
+     * Module for working with UI
+     */
+    this.ui = new Ui({
+      api,
+      config: this.config,
+      onSelectFile: () => {
+        this.uploader.uploadSelectedFile({
+          onPreview: (src) => {
+            this.ui.showPreloader(src);
+          },
+        });
+      },
+      readOnly,
+    });
+
+    /**
+     * Module for working with tunes
+     */
+    this.tunes = new Tunes({
+      api,
+      actions: this.config.actions,
+      onChange: (tuneName) => this.tuneToggled(tuneName),
+    });
+
+    Tunes.tunes.forEach(({ name: tune }) => {
+      const value = typeof data[tune] !== 'undefined' ? data[tune] === true || data[tune] === 'true' : false;
+
+      this.setTune(tune, value);
     });
   }
 
@@ -48,31 +114,17 @@ export default class SimpleCarousel {
       /**
        * Tool's classes
        */
-      wrapper: 'carousel-wrapper',
-      addButton: 'carousel-addImage',
-      block: 'carousel-block',
-      item: 'carousel-item',
-      removeBtn: 'carousel-removeBtn',
-      inputUrl: 'carousel-inputUrl',
-      caption: 'carousel-caption',
-      list: 'carousel-list',
+      wrapper: 'gallery-wrapper',
+      addButton: 'gallery-addImage',
+      block: 'gallery-block',
+      item: 'gallery-item',
+      removeBtn: 'gallery-removeBtn',
+      inputUrl: 'gallery-inputUrl',
+      caption: 'gallery-caption',
+      list: 'gallery-list',
       imagePreloader: 'image-tool__image-preloader'
     };
   };
-
-  /**
-   * Get Tool toolbox settings
-   * icon - Tool icon's SVG
-   * title - title to show in toolbox
-   *
-   * @return {{icon: string, title: string}}
-   */
-  static get toolbox() {
-    return {
-      title: 'SimpleCarousel',
-      icon: '<svg width="17" height="15" viewBox="0 0 336 276" xmlns="http://www.w3.org/2000/svg"><path d="M291 150V79c0-19-15-34-34-34H79c-19 0-34 15-34 34v42l67-44 81 72 56-29 42 30zm0 52l-43-30-56 30-81-67-66 39v23c0 19 15 34 34 34h178c17 0 31-13 34-29zM79 0h178c44 0 79 35 79 79v118c0 44-35 79-79 79H79c-44 0-79-35-79-79V79C0 35 35 0 79 0z"/></svg>'
-    };
-  }
 
   /**
    * Renders Block content
@@ -98,9 +150,8 @@ export default class SimpleCarousel {
 
     this.list.appendChild(this.addButton);
     this.wrapper.appendChild(this.list);
-    if (this.data.length > 0) {
-      console.log('load_item render', this.data);
-      for (const load of this.data) {
+    if (typeof this.data.images !== 'undefined' && this.data.images.length > 0) {
+      for (const load of this.data.images) {
         const loadItem = this.creteNewItem(load.url, load.caption);
 
         this.list.insertBefore(loadItem, this.addButton);
@@ -112,19 +163,20 @@ export default class SimpleCarousel {
   // eslint-disable-next-line require-jsdoc
   save(blockContent) {
     const list = blockContent.getElementsByClassName(this.CSS.item);
-    const data = [];
+    const images = [];
 
     if (list.length > 0) {
       for (const item of list) {
         if (item.firstChild.value) {
-          data.push({
+          images.push({
             url: item.firstChild.value,
             caption: item.lastChild.value
           });
         }
       }
     }
-    return data;
+    this.data.images = images;
+    return this.data;
   }
 
   /**
@@ -153,7 +205,7 @@ export default class SimpleCarousel {
     const imagePreloader = make('div', [ this.CSS.imagePreloader ]);
 
     imageUrl.value = url;
-    removeBtn.innerHTML = this.IconClose;
+    removeBtn.innerHTML = closeIcon;
     removeBtn.addEventListener('click', () => {
       block.remove();
     });
@@ -209,14 +261,10 @@ export default class SimpleCarousel {
    */
   onUpload(response) {
     if (response.success && response.file) {
-      // Берем последний созданный элемент и ставим изображение с сервера
-      console.log(this.list);
-      console.log(this.list.childNodes.length);
-      console.log(this.list.childNodes.length - 1);
       this._createImage(response.file.url, this.list.childNodes[this.list.childNodes.length - 2].firstChild, '', this.list.childNodes[this.list.childNodes.length - 2].firstChild.childNodes[1]);
       this.list.childNodes[this.list.childNodes.length - 2].firstChild.childNodes[2].style.backgroundImage = '';
       this.list.childNodes[this.list.childNodes.length - 2].firstChild.firstChild.value = response.file.url;
-      this.list.childNodes[this.list.childNodes.length - 2].firstChild.classList.add('carousel-item--empty');
+      this.list.childNodes[this.list.childNodes.length - 2].firstChild.classList.add('gallery-item--empty');
     } else {
       this.uploadingFailed('incorrect response: ' + JSON.stringify(response));
     }
@@ -274,6 +322,53 @@ export default class SimpleCarousel {
     block.appendChild(addButton);
 
     return block;
+  }
+
+  /**
+   * Makes buttons with tunes: add background, add border, stretch image
+   *
+   * @public
+   *
+   * @returns {Element}
+   */
+  renderSettings() {
+    return this.tunes.render(this.data);
+  }
+
+  /**
+   * Fires after clicks on the Toolbox Image Icon
+   * Initiates click on the Select File button
+   *
+   * @public
+   */
+  appendCallback() {
+    this.ui.nodes.fileButton.click();
+  }
+
+  /**
+   * Callback fired when Block Tune is activated
+   *
+   * @private
+   *
+   * @param {string} tuneName - tune that has been clicked
+   * @returns {void}
+   */
+  tuneToggled(tuneName) {
+    // inverse tune state
+    this.setTune(tuneName, !this.data[tuneName]);
+  }
+
+  /**
+   * Set one tune
+   *
+   * @param {string} tuneName - {@link Tunes.tunes}
+   * @param {boolean} value - tune state
+   * @returns {void}
+   */
+  setTune(tuneName, value) {
+    this.data[tuneName] = value;
+
+    this.ui.applyTune(tuneName, value);
   }
 }
 
