@@ -49,6 +49,15 @@
     margin-bottom: 15px;
 }
 
+.gallery-list--slider {
+    overflow-x: scroll;
+    flex-wrap: nowrap;
+}
+
+.gallery-list--slider .gallery-block {
+    min-width: 320px;
+}
+
 .gallery-item {
     height: 235px;
     padding: 5px;

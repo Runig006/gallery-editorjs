@@ -1,4 +1,5 @@
 import buttonIcon from './svg/button-icon.svg';
+import closeIcon from './svg/close-icon.svg';
 
 /**
  * Class for working with UI:
@@ -20,42 +21,31 @@ export default class Ui {
     this.onSelectFile = onSelectFile;
     this.readOnly = readOnly;
     this.nodes = {
-      list: make('div', [ this.CSS.baseClass ]),
-      item: make('div', [this.CSS.baseClass, this.CSS.wrapper]),
-      wrapper: make('div', [this.CSS.baseClass, this.CSS.wrapper]),
-      imageContainer: make('div', [ this.CSS.imageContainer ]),
-      fileButton: this.createFileButton(),
+      list: make('div', [ this.CSS.list ]),
+      // item: make('div', [ this.CSS.baseClass, this.CSS.wrapper ]),
+      wrapper: make('div', [this.CSS.wrapper]),
+      // imageContainer: make('div', [ this.CSS.imageContainer ]),
+      // fileButton: this.createFileButton(),
       addButton: this.createAddButton(),
-      imageEl: undefined,
-      imagePreloader: make('div', this.CSS.imagePreloader),
-      caption: make('div', [this.CSS.input, this.CSS.caption], {
-        contentEditable: !this.readOnly,
-      }),
+      // imageEl: undefined,
+      // imagePreloader: make('div', this.CSS.imagePreloader),
+      // caption: make('div', [ this.CSS.input, this.CSS.caption ], {
+      //   contentEditable: !this.readOnly,
+      // }),
     };
 
-    /**
-     * Create base structure
-     *  <wrapper>
-     *    <list>
-     *       <item>
-     *           <image-container>
-     *           <image-preloader />
-     *           </image-container>
-     *           <caption />
-     *           <select-file-button />
-     *        </item>
-     *    </list>
-     *    <add-button />
-     *  </wrapper>
+    /*
+     * Structure
+     * <wrapper>
+     *  <list>
+     *    <item/>
+     *    ...
+     *  </list>
+     *  <addButton>
+     * </wrapper>
      */
-    this.nodes.caption.dataset.placeholder = this.config.captionPlaceholder;
-    this.nodes.imageContainer.appendChild(this.nodes.imagePreloader);
-    this.nodes.item.appendChild(this.nodes.imageContainer);
-    this.nodes.item.appendChild(this.nodes.caption);
-    this.nodes.item.appendChild(this.nodes.fileButton);
-    this.nodes.list.appendChild(this.nodes.item);
+    this.nodes.list.appendChild(this.nodes.addButton);
     this.nodes.wrapper.appendChild(this.nodes.list);
-    this.nodes.wrapper.appendChild(this.nodes.addButton);
   }
 
   /**
@@ -65,6 +55,9 @@ export default class Ui {
    */
   get CSS() {
     return {
+      /**
+       * Tool's classes
+       */
       baseClass: this.api.styles.block,
       loading: this.api.styles.loader,
       input: this.api.styles.input,
@@ -73,11 +66,16 @@ export default class Ui {
       /**
        * Tool's classes
        */
-      wrapper: 'image-tool',
-      imageContainer: 'image-tool__image',
-      imagePreloader: 'image-tool__image-preloader',
-      imageEl: 'image-tool__image-picture',
-      caption: 'image-tool__caption',
+      wrapper: 'gallery-wrapper',
+      addButton: 'gallery-addImage',
+      block: 'gallery-block',
+      item: 'gallery-item',
+      itemEmpty: 'gallery-item--empty',
+      removeBtn: 'gallery-removeBtn',
+      inputUrl: 'gallery-inputUrl',
+      caption: 'gallery-caption',
+      list: 'gallery-list',
+      imagePreloader: 'image-tool__image-preloader'
     };
   };
 
@@ -97,6 +95,10 @@ export default class Ui {
     };
   }
 
+  getImages() {
+    return this.nodes.list.getElementsByClassName(this.CSS.item);
+  }
+
   /**
    * Renders tool UI
    *
@@ -104,10 +106,15 @@ export default class Ui {
    * @returns {Element}
    */
   render(toolData) {
-    if (!toolData.file || Object.keys(toolData.file).length === 0) {
+    if (!toolData.images || Object.keys(toolData.images).length === 0) {
       // Если мало данных то мы ставим статус пусто
       this.toggleStatus(Ui.status.EMPTY);
     } else {
+      for (const load of toolData.images) {
+        const loadItem = this.creteNewItem(load.url, load.caption);
+
+        this.nodes.list.insertBefore(loadItem, this.addButton);
+      }
       // Если есть изображение то статус загрузка
       this.toggleStatus(Ui.status.UPLOADING);
     }
@@ -116,18 +123,20 @@ export default class Ui {
 
 
   /**
-   * Creates upload-file button
-   *
-   * @returns {Element}
+   * Create add button
+   * @private
    */
   createAddButton() {
-    const addButton = make('div', [ this.CSS.button ]);
+    const addButton = make('div', [this.CSS.button, this.CSS.addButton]);
+    const block = make('div', [ this.CSS.block ]);
+
     addButton.innerHTML = this.config.buttonContent || `${buttonIcon} Add Image`;
     addButton.addEventListener('click', () => {
-      this.nodes.list.appendChild();
-      console.log(this.nodes.list);
+      this.onSelectFile();
     });
-    return addButton;
+    block.appendChild(addButton);
+
+    return block;
   }
 
   /**
@@ -154,19 +163,11 @@ export default class Ui {
    * @returns {void}
    */
   showPreloader(src) {
-    this.nodes.imagePreloader.style.backgroundImage = `url(${src})`;
-
-    this.toggleStatus(Ui.status.UPLOADING);
-  }
-
-  /**
-   * Hide uploading preloader
-   *
-   * @returns {void}
-   */
-  hidePreloader() {
-    this.nodes.item.imagePreloader.style.backgroundImage = '';
-    this.toggleStatus(Ui.status.EMPTY);
+    const newItem = this.creteNewItem('', '');
+    newItem.firstChild.lastChild.style.backgroundImage = `url(${src})`;
+    console.log('preload', newItem.firstChild.lastChild);
+    this.nodes.list.insertBefore(newItem, this.addButton);
+    console.log(src);
   }
 
   /**
@@ -262,7 +263,7 @@ export default class Ui {
     for (const statusType in Ui.status) {
       // eslint-disable-next-line no-prototype-builtins
       if (Ui.status.hasOwnProperty(statusType)) {
-        this.nodes.item.classList.toggle(`${this.CSS.wrapper}--${Ui.status[statusType]}`, status === Ui.status[statusType]);
+        this.nodes.wrapper.classList.toggle(`${this.CSS.wrapper}--${Ui.status[statusType]}`, status === Ui.status[statusType]);
       }
     }
   }
@@ -275,7 +276,88 @@ export default class Ui {
    * @returns {void}
    */
   applyTune(tuneName, status) {
-    this.nodes.item.classList.toggle(`${this.CSS.wrapper}--${tuneName}`, status);
+    this.nodes.list.classList.toggle(`${this.CSS.list}--${tuneName}`, status);
+  }
+
+  /**
+   * Create Image block
+   * @public
+   *
+   * @param {string} url - url of saved or upload image
+   * @param {string} caption - caption of image
+   *
+   * Structure
+   * <item>
+   *  <url/>
+   *  <removeButton/>
+   *  <img/>
+   *  <caption>
+   * </item>
+   *
+   * @return {HTMLDivElement}
+   */
+  creteNewItem(url, caption) {
+    // Create item, remove button and field for image url
+    const block = make('div', [ this.CSS.block ]);
+    const item = make('div', [ this.CSS.item ]);
+    const removeBtn = make('div', [ this.CSS.removeBtn ]);
+    const imageUrl = make('input', [ this.CSS.inputUrl ]);
+    const imagePreloader = make('div', [ this.CSS.imagePreloader ]);
+
+    imageUrl.value = url;
+    removeBtn.innerHTML = closeIcon;
+    removeBtn.addEventListener('click', () => {
+      block.remove();
+    });
+    removeBtn.style.display = 'none';
+
+    item.appendChild(imageUrl);
+    item.appendChild(removeBtn);
+    block.appendChild(item);
+    /*
+     * If data already yet
+     * We create Image view
+     */
+    if (url) {
+      this._createImage(url, item, caption, removeBtn);
+    } else {
+      item.appendChild(imagePreloader);
+    }
+    return block;
+  }
+
+  uploadFile(file) {
+    this._createImage(file.url, this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild, '', this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.childNodes[1]);
+    this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.childNodes[2].style.backgroundImage = '';
+    this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.firstChild.value = file.url;
+    this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.classList.add(this.CSS.itemEmpty);
+  }
+
+  /**
+   * Create Image View
+   * @public
+   *
+   * @param {string} url - url of saved or upload image
+   * @param {HTMLDivElement} item - block of created image
+   * @param {string} captionText - caption of image
+   * @param {HTMLDivElement} removeBtn - button for remove image block
+   *
+   * @return {HTMLDivElement}
+   */
+  _createImage(url, item, captionText, removeBtn) {
+    const image = document.createElement('img');
+    const caption = make('input', [this.CSS.caption, this.CSS.input]);
+
+    image.src = url;
+    if (captionText) {
+      caption.value = captionText;
+    }
+    caption.placeholder = 'Caption...';
+
+    removeBtn.style.display = 'flex';
+
+    item.appendChild(image);
+    item.appendChild(caption);
   }
 }
 
