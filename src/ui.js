@@ -130,7 +130,7 @@ export default class Ui {
     const addButton = make('div', [this.CSS.button, this.CSS.addButton]);
     const block = make('div', [ this.CSS.block ]);
 
-    addButton.innerHTML = this.config.buttonContent || `${buttonIcon} Add Image`;
+    addButton.innerHTML = this.config.buttonContent || `${buttonIcon} ${this.api.i18n.t('Add Image')}`;
     addButton.addEventListener('click', () => {
       this.onSelectFile();
     });
@@ -352,7 +352,7 @@ export default class Ui {
     if (captionText) {
       caption.value = captionText;
     }
-    caption.placeholder = 'Caption...';
+    caption.placeholder = this.api.i18n.t('Caption...');
 
     removeBtn.style.display = 'flex';
 

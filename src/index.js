@@ -51,7 +51,7 @@ export default class Gallery {
       additionalRequestHeaders: config.additionalRequestHeaders || {},
       field: config.field || 'image',
       types: config.types || 'image/*',
-      captionPlaceholder: this.api.i18n.t(config.captionPlaceholder || 'Caption'),
+      captionPlaceholder: this.api.i18n.t('Caption'),
       buttonContent: config.buttonContent || '',
       uploader: config.uploader || undefined,
       actions: config.actions || [],
@@ -151,7 +151,7 @@ export default class Gallery {
     console.log('Gallery : uploading failed because of', errorText);
 
     this.api.notifier.show({
-      message: 'Can not upload an image, try another',
+      message: this.api.i18n.t('Can not upload an image, try another'),
       style: 'error'
     });
   }
