@@ -1,5 +1,4 @@
 import { make } from './ui';
-import sliderIcon from './svg/slider.svg';
 
 /**
  * Working with Block Tunes
@@ -24,13 +23,7 @@ export default class Tunes {
    * @returns {{name: string, icon: string, title: string}[]}
    */
   static get tunes() {
-    return [
-      {
-        name: 'slider',
-        icon: sliderIcon,
-        title: 'Slider',
-      },
-    ];
+    return [];
   }
 
   /**

@@ -40,6 +40,14 @@ export default class Gallery {
   constructor({ data, config, api, readOnly }) {
     this.api = api;
     this.data = data;
+
+    if ('images' in this.data && this.data.images.length > 0) {
+      this.dirtyData = data;
+    } else {
+      this.dirtyData = {
+        images: []
+      };
+    }
     this.readOnly = readOnly;
 
     /**
@@ -93,7 +101,6 @@ export default class Gallery {
 
     Tunes.tunes.forEach(({ name: tune }) => {
       const value = typeof data[tune] !== 'undefined' ? data[tune] === true || data[tune] === 'true' : false;
-
       this.setTune(tune, value);
     });
   }
@@ -110,20 +117,28 @@ export default class Gallery {
 
   // eslint-disable-next-line require-jsdoc
   save() {
-    const list = this.ui.getImages();
-    const images = [];
+    var cleanData = [];
+    var images = this.ui.getImages();
 
-    if (list.length > 0) {
-      for (const item of list) {
-        if (item.firstChild.value) {
-          images.push({
-            url: item.firstChild.value,
-            caption: item.lastChild.value
-          });
+    var image = null;
+    var imageName = null;
+    var rawData = null;
+    var caption = null;
+
+    for (var i = 0; i < images.length; i++) {
+      image = images[i];
+      imageName = image.firstChild.value;
+      caption = image.lastChild.value;
+      for (var j = 0; j < this.dirtyData.images.length; j++) {
+        rawData = this.dirtyData.images[j];
+        if (imageName == rawData.file.name) {
+          rawData.caption = caption;
+          cleanData.push(rawData);
+          continue;
         }
       }
     }
-    this.data.images = images;
+    this.data.images = cleanData;
     return this.data;
   }
 
@@ -135,7 +150,12 @@ export default class Gallery {
    */
   onUpload(response) {
     if (response.success && response.file) {
-      this.ui.uploadFile(response.file);
+      var file = this.ui.uploadFile(response.file);
+      var object = {
+        file: file,
+        caption: null
+      };
+      this.dirtyData.images.push(object);
     } else {
       this.uploadingFailed('incorrect response: ' + JSON.stringify(response));
     }

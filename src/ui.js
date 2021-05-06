@@ -21,7 +21,7 @@ export default class Ui {
     this.onSelectFile = onSelectFile;
     this.readOnly = readOnly;
     this.nodes = {
-      list: make('div', [ this.CSS.list ]),
+      list: make('div', [this.CSS.list]),
       // item: make('div', [ this.CSS.baseClass, this.CSS.wrapper ]),
       wrapper: make('div', [this.CSS.wrapper]),
       // imageContainer: make('div', [ this.CSS.imageContainer ]),
@@ -107,15 +107,12 @@ export default class Ui {
    */
   render(toolData) {
     if (!toolData.images || Object.keys(toolData.images).length === 0) {
-      // Если мало данных то мы ставим статус пусто
       this.toggleStatus(Ui.status.EMPTY);
     } else {
       for (const load of toolData.images) {
-        const loadItem = this.creteNewItem(load.url, load.caption);
-
+        const loadItem = this.creteNewItem(load.file.url, load.caption, load.file.name);
         this.nodes.list.insertBefore(loadItem, this.addButton);
       }
-      // Если есть изображение то статус загрузка
       this.toggleStatus(Ui.status.UPLOADING);
     }
     return this.nodes.wrapper;
@@ -128,7 +125,7 @@ export default class Ui {
    */
   createAddButton() {
     const addButton = make('div', [this.CSS.button, this.CSS.addButton]);
-    const block = make('div', [ this.CSS.block ]);
+    const block = make('div', [this.CSS.block]);
 
     addButton.innerHTML = this.config.buttonContent || `${buttonIcon} ${this.api.i18n.t('Add Image')}`;
     addButton.addEventListener('click', () => {
@@ -145,7 +142,7 @@ export default class Ui {
    * @return {Element}
    */
   createFileButton() {
-    const button = make('div', [ this.CSS.button ]);
+    const button = make('div', [this.CSS.button]);
 
     button.innerHTML = this.config.buttonContent || `${buttonIcon} ${this.api.i18n.t('Select an Image')}`;
 
@@ -163,11 +160,9 @@ export default class Ui {
    * @returns {void}
    */
   showPreloader(src) {
-    const newItem = this.creteNewItem('', '');
+    const newItem = this.creteNewItem('', '', null);
     newItem.firstChild.lastChild.style.backgroundImage = `url(${src})`;
-    console.log('preload', newItem.firstChild.lastChild);
     this.nodes.list.insertBefore(newItem, this.addButton);
-    console.log(src);
   }
 
   /**
@@ -296,22 +291,23 @@ export default class Ui {
    *
    * @return {HTMLDivElement}
    */
-  creteNewItem(url, caption) {
+  creteNewItem(url, caption, name) {
     // Create item, remove button and field for image url
-    const block = make('div', [ this.CSS.block ]);
-    const item = make('div', [ this.CSS.item ]);
-    const removeBtn = make('div', [ this.CSS.removeBtn ]);
-    const imageUrl = make('input', [ this.CSS.inputUrl ]);
-    const imagePreloader = make('div', [ this.CSS.imagePreloader ]);
+    const block = make('div', [this.CSS.block]);
+    const item = make('div', [this.CSS.item]);
+    const removeBtn = make('div', [this.CSS.removeBtn]);
+    const imageName = make('input', [this.CSS.inputUrl]);
+    const imagePreloader = make('div', [this.CSS.imagePreloader]);
 
-    imageUrl.value = url;
+    imageName.value = name;
+
     removeBtn.innerHTML = closeIcon;
     removeBtn.addEventListener('click', () => {
       block.remove();
     });
     removeBtn.style.display = 'none';
 
-    item.appendChild(imageUrl);
+    item.appendChild(imageName);
     item.appendChild(removeBtn);
     block.appendChild(item);
     /*
@@ -327,10 +323,13 @@ export default class Ui {
   }
 
   uploadFile(file) {
-    this._createImage(file.url, this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild, '', this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.childNodes[1]);
-    this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.childNodes[2].style.backgroundImage = '';
-    this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.firstChild.value = file.url;
-    this.nodes.list.childNodes[this.nodes.list.childNodes.length - 1].firstChild.classList.add(this.CSS.itemEmpty);
+    var lastIndex = this.nodes.list.childNodes.length - 1;
+    this._createImage(file.url, this.nodes.list.childNodes[lastIndex].firstChild, '', this.nodes.list.childNodes[lastIndex].firstChild.childNodes[1]);
+    this.nodes.list.childNodes[lastIndex].firstChild.childNodes[2].style.backgroundImage = '';
+    this.nodes.list.childNodes[lastIndex].firstChild.firstChild.value = file.name;
+    this.nodes.list.childNodes[lastIndex].firstChild.classList.add(this.CSS.itemEmpty);
+
+    return file;
   }
 
   /**

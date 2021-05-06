@@ -34,6 +34,7 @@
 
 .gallery-block {
     width: 50%;
+    margin-bottom: 20px;
 }
 
 .gallery-list {
@@ -49,10 +50,6 @@
     margin-bottom: 15px;
 }
 
-.gallery-list--slider {
-    overflow-x: scroll;
-    flex-wrap: nowrap;
-}
 
 .gallery-list--slider .gallery-block {
     min-width: 320px;
